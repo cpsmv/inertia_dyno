@@ -19,10 +19,9 @@ class serial_thread(threading.Thread):
 		self.torque_ref = my_torque_ref
 		self.time_ref = my_time_ref
 
-		# intialization of some variables (will be defined later)
+		# intialization of important variables
 		self.ser_port = None
 		self.init_time = 0
-		self.curr_time = 0
 
 		# Arduino data rate
 		self.arduino_data_rate = 5 # Hz
@@ -40,7 +39,13 @@ class serial_thread(threading.Thread):
 
 		f = open('out.csv', 'w')
 		self.init_time = time.time()
-		self.curr_time = 0
+
+		"""
+		while True:
+			self.speed_ref.put(random.uniform(0,1400))
+			self.torque_ref.put(random.uniform(0,50))
+			self.time_ref.put(time.time()-self.init_time)
+			time.sleep(20E-3)"""
 
 		# loop forever until thread is terminated
 		while self.active.isSet():
@@ -54,27 +59,28 @@ class serial_thread(threading.Thread):
 
 			# only proceed if a serial port has been found
 			else:
-				# Read a line and convert it from b'xxx\r\n' to xxx
-				line = self.ser_port.readline().decode('utf-8')[:-1]
-				#print("Raw Serial: ", line)
 
-				# timestamp
-				self.curr_time = time.time()-self.init_time
+				# IMPORTANT: update time queue before reading serial so flotchart plotting isn't choppy
+				self.time_ref.put(time.time()-self.init_time)
 
-				formated = self.parse_data(line)
-				if not len(formated) <= 0:
-					left_flywheel_rpm = formated[0]/168*60/self.arduino_data_period
+				# Read a line and 
+				line_in = self.ser_port.readline()
 
-					self.speed_ref.put(left_flywheel_rpm)
-					self.torque_ref.put(random.uniform(0,50))
-					self.time_ref.put(self.curr_time)
+				# only continue if the serial port did not timeout and successfully read a line
+				if not line_in == b'' and not line_in == b'\n':
+					#convert line from b'xxx\r\n' to xxx
+					line = line_in.decode('utf-8')[:-1]
+					#print("Raw Serial: ", line)
 
-					"""if formated:  # If it isn't a blank line
-						for num in formated:
-							print("RPM: {:.0f}".format((num/168*60)/.2))
-						#print("RPM: %.1f" % (num/168*60)/.2)
-						f.write("{}, {}\n".format(formated[0],formated[1]))"""
+					formatted = self.parse_data(line)
+					if not len(formatted) == 0:
+						left_flywheel_rpm = formatted[0]/168*60/self.arduino_data_period
+						self.speed_ref.put(left_flywheel_rpm)
+						self.torque_ref.put(random.uniform(0,50))
 
+				else: 
+					continue
+				
 		f.close()
 
 

@@ -27,14 +27,14 @@
 			},
 			yaxes: [{
 				axisLabel: 'Speed (rpm)',
-				axisLabelPadding: 5
+				axisLabelPadding: 20
 			}],
 			xaxis: {
 				show: true
 			},
 			xaxes: [{
 				axisLabel: 'Time (s)',
-				axisLabelPadding: 5
+				axisLabelPadding: 4
 			}]
 		});
 
@@ -55,20 +55,20 @@
 			},
 			yaxes: [{
 				axisLabel: 'Torque (Nm)',
-				axisLabelPadding: 5
+				axisLabelPadding: 6
 			}],
 			xaxis: {
 				show: true
 			},
 			xaxes: [{
 				axisLabel: 'Time (s)',
-				axisLabelPadding: 5
+				axisLabelPadding: 4
 			}]
 		});
 
-	    var speed = [], 
-	        torque = [], 
-	        time = [], 
+	    var speed = 0, 
+	        torque = 0, 
+	        time = 0, 
 	        spd_plot = [], 
 	        torq_plot = [],
 	        sample_freq = 50,
@@ -84,41 +84,23 @@
             	num_data_points = sample_freq*plot_time_shown;
             }
             else if (data[0] == "s") { 
-            	if (speed.length < num_data_points) {
-            		speed.push(data.slice(1));
-            	}
-            	else {
-            		speed = speed.slice(1);
-            		speed.push(data.slice(1));
-            	}
+				speed = data.slice(1);
             }
             else if (data[0] == "T") {
-            	if (torque.length < num_data_points) {
-            		torque.push(data.slice(1));
-            	}
-            	else {
-            		torque = torque.slice(1);
-            		torque.push(data.slice(1));
-            	}
+            	torque = data.slice(1);
             }
             else if (data[0] == "t") {
-            	if (time.length < num_data_points) {
-            		time.push(data.slice(1));
-            	}
-            	else {
-            		time = time.slice(1);
-            		time.push(data.slice(1));
-            	}
+            	time = data.slice(1);
             	// Format data arrays for plotting
             	if (spd_plot.length < num_data_points && torq_plot.length < num_data_points) {
-            		spd_plot.push( [time[spd_plot.length-1],speed[spd_plot.length-1]] );
-	           		torq_plot.push( [time[torq_plot.length-1],torque[torq_plot.length-1]] );
+            		spd_plot.push( [time,speed] );
+	           		torq_plot.push( [time,torque] );
             	}
             	else {
             		spd_plot = spd_plot.slice(1);
             		torq_plot = torq_plot.slice(1);
-            		spd_plot.push( [time[num_data_points-1],speed[num_data_points-1]] );
-            		torq_plot.push( [time[num_data_points-1],torque[num_data_points-1]]);
+            		spd_plot.push( [time,speed] );
+            		torq_plot.push( [time,torque] );
             	}
             }
         };
@@ -133,7 +115,7 @@
 			torque_plot.setupGrid();
 			torque_plot.draw();
 
-			setTimeout(draw_plots, 50);
+			setTimeout(draw_plots, 10);
 		}
 
 		draw_plots();

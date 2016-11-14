@@ -1,5 +1,6 @@
-import serial, csv, sys, time, asyncio, websockets
+import time, asyncio, websockets, random
 from serial_thread import serial_thread
+from threading import Lock
 
 
 sample_freq = 50 # Hz
@@ -10,21 +11,39 @@ sample_period = 1/sample_freq # s
 #------------------------------------------------------------------------------------------------------------------
 class shared_ref():
 
-	def __init__(self, val): 
-		self._value = val
+	def __init__(self, my_lock, my_timeout, my_val=None): 
+		self._lock = my_lock
+		self._timeout = my_timeout
+		self._value = my_val
 
 	def get(self): 
-		return self._value
+		try:
+			self._lock.acquire(timeout=self._timeout)
+			val = self._value
+			self._lock.release()
+			return val
+		except:
+			#print("Did not get a value from " + str(lock))
+			return None
 
 	def put(self, val):
-		self._value = val
+		try:
+			self._lock.acquire(timeout=self._timeout)
+			self._value = val
+			self._lock.release()
+		except:
+			#print("Did not put " + val + " into " + str(lock))
+			pass
 
-speed_ref = shared_ref(0)
-torque_ref = shared_ref(0)
-time_ref = shared_ref(0)
+#------------------------------------------------------------------------
+#   W E B S O C K E T   S H A R E D   R E F S
+#------------------------------------------------------------------------
+speed_ref = shared_ref(Lock(), 1E-5)
+torque_ref = shared_ref(Lock(), 1E-5)
+time_ref = shared_ref(Lock(), 1E-5)
 
 async def data_transmission(websocket, path):
-	
+
 	data = "f%d" % sample_freq
 	await websocket.send(data)
 
@@ -43,7 +62,7 @@ async def data_transmission(websocket, path):
 if __name__ == '__main__':
 
 	# launch serial thread
-	ser_thread = serial_thread(115200, 1, sample_freq, speed_ref, torque_ref, time_ref)
+	ser_thread = serial_thread(115200, 200E-6, sample_freq, speed_ref, torque_ref, time_ref)
 	ser_thread.start()
 
 	# launch websocket and run it forever
