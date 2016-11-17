@@ -1,11 +1,11 @@
 import threading, serial, glob, time, random
 
 
-class serial_thread(threading.Thread):
+class hall_effect_thread(threading.Thread):
 
 	def __init__(self, my_baud, my_ser_timeout, my_sample_freq, my_speed_ref, my_torque_ref, my_time_ref):
 
-		super().__init__(name="serial thread")
+		super().__init__(name="hall effect thread")
 
 		# keep track of when thread it active
 		self.active = threading.Event()

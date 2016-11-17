@@ -1,46 +1,19 @@
 import time, asyncio, websockets, random
-from serial_thread import serial_thread
+from hall_effect_thread import hall_effect_thread
+from thread_safe import shared_ref
 from threading import Lock
 
-
-sample_freq = 50 # Hz
-sample_period = 1/sample_freq # s
-
 #------------------------------------------------------------------------------------------------------------------
-#   S H A R E D   R E F E R E N C E   C L A S S
+#   D Y N O   P A R A M E T E R S
 #------------------------------------------------------------------------------------------------------------------
-class shared_ref():
-
-	def __init__(self, my_lock, my_timeout, my_val=None): 
-		self._lock = my_lock
-		self._timeout = my_timeout
-		self._value = my_val
-
-	def get(self): 
-		try:
-			self._lock.acquire(timeout=self._timeout)
-			val = self._value
-			self._lock.release()
-			return val
-		except:
-			#print("Did not get a value from " + str(lock))
-			return None
-
-	def put(self, val):
-		try:
-			self._lock.acquire(timeout=self._timeout)
-			self._value = val
-			self._lock.release()
-		except:
-			#print("Did not put " + val + " into " + str(lock))
-			pass
 
 #------------------------------------------------------------------------
-#   W E B S O C K E T   S H A R E D   R E F S
+#   T H R E A D   S A F E   R E F E R E N C E S
 #------------------------------------------------------------------------
 speed_r = shared_ref(Lock(), 1E-5)
 torque_r = shared_ref(Lock(), 1E-5)
 time_r = shared_ref(Lock(), 1E-5)
+sample_freq_r = shared_ref(Lock(), 1E-5)
 
 async def data_transmission(websocket, path):
 
@@ -54,16 +27,19 @@ async def data_transmission(websocket, path):
 		await websocket.send(data)
 		data = "t%.2f" % time_r.get()
 		await websocket.send(str(data))
-		await asyncio.sleep(sample_period)
+		await asyncio.sleep(1/sample_freq.get())
 
 #------------------------------------------------------------------------------------------------------------------
 #   M A I N  
 #------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-	# launch serial thread
-	ser_thread = serial_thread(115200, 200E-6, sample_freq, speed_r, torque_r, time_r)
-	ser_thread.start()
+	# initialize sample frequency to 50Hz
+	sample_freq_r.put(50)
+
+	# launch hall effect thread
+	hall_eff_thread = hall_effect_thread(115200, 200E-6, sample_freq, speed_r, torque_r, time_r)
+	hall_eff_thread.start()
 
 	# launch websocket and run it forever
 	server = websockets.serve(data_transmission, '127.0.0.1', 8001)
