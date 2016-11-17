@@ -38,9 +38,9 @@ class shared_ref():
 #------------------------------------------------------------------------
 #   W E B S O C K E T   S H A R E D   R E F S
 #------------------------------------------------------------------------
-speed_ref = shared_ref(Lock(), 1E-5)
-torque_ref = shared_ref(Lock(), 1E-5)
-time_ref = shared_ref(Lock(), 1E-5)
+speed_r = shared_ref(Lock(), 1E-5)
+torque_r = shared_ref(Lock(), 1E-5)
+time_r = shared_ref(Lock(), 1E-5)
 
 async def data_transmission(websocket, path):
 
@@ -48,11 +48,11 @@ async def data_transmission(websocket, path):
 	await websocket.send(data)
 
 	while True:
-		data = "s%.0f" % speed_ref.get()
+		data = "s%.0f" % speed_r.get()
 		await websocket.send(data)
-		data = "T%.1f" % torque_ref.get()
+		data = "T%.1f" % torque_r.get()
 		await websocket.send(data)
-		data = "t%.2f" % time_ref.get()
+		data = "t%.2f" % time_r.get()
 		await websocket.send(str(data))
 		await asyncio.sleep(sample_period)
 
@@ -62,7 +62,7 @@ async def data_transmission(websocket, path):
 if __name__ == '__main__':
 
 	# launch serial thread
-	ser_thread = serial_thread(115200, 200E-6, sample_freq, speed_ref, torque_ref, time_ref)
+	ser_thread = serial_thread(115200, 200E-6, sample_freq, speed_r, torque_r, time_r)
 	ser_thread.start()
 
 	# launch websocket and run it forever

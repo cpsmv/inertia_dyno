@@ -39,6 +39,9 @@ class serial_thread(threading.Thread):
 
 		f = open('out.csv', 'w')
 		self.init_time = time.time()
+		self.time_ref.put(self.init_time)
+		self.speed_ref.put(0)
+		self.torque_ref.put(0)
 
 		"""
 		while True:
@@ -50,6 +53,9 @@ class serial_thread(threading.Thread):
 		# loop forever until thread is terminated
 		while self.active.isSet():
 
+			# IMPORTANT: update time shared reference before reading serial so flotchart plotting isn't choppy
+			self.time_ref.put(time.time()-self.init_time)
+
 			# find a serial port if one hasn't been found yet
 			if self.ser_port == None:
 				port_name = self.find_serial_ports()
@@ -59,9 +65,6 @@ class serial_thread(threading.Thread):
 
 			# only proceed if a serial port has been found
 			else:
-
-				# IMPORTANT: update time queue before reading serial so flotchart plotting isn't choppy
-				self.time_ref.put(time.time()-self.init_time)
 
 				# Read a line and 
 				line_in = self.ser_port.readline()
