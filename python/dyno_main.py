@@ -37,8 +37,8 @@ if __name__ == '__main__':
     # initialize sample frequency to 50Hz
     sample_freq_r.put(50)
 
-    # launch hall effect thread
-    hall_eff_thread = hall_effect_thread(115200, 200E-6, sample_freq_r.get(), speed_r, torque_r, time_r)
+    # define and launch hall effect thread
+    hall_eff_thread = hall_effect_thread(115200, 10E-3, sample_freq_r.get(), speed_r, torque_r, time_r)
     hall_eff_thread.start()
 
     # launch websocket and run it forever
@@ -48,6 +48,7 @@ if __name__ == '__main__':
     try:
         loop.run_forever()
     except:
+        print('\nTerminating asyncio loop.')
         loop.close()
 
 

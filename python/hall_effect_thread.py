@@ -22,6 +22,7 @@ class hall_effect_thread(threading.Thread):
 		# intialization of important variables
 		self.ser_port = None
 		self.init_time = 0
+		self.handshake_wait_interval = 2 # seconds
 
 		# Arduino data rate
 		self.arduino_data_rate = 5 # Hz
@@ -30,7 +31,7 @@ class hall_effect_thread(threading.Thread):
 
 	def start(self):
 
-		print(super().getName() + " is starting.")
+		print(super().getName() + " is starting.\n")
 		self.active.set()
 		super().start()
 
@@ -58,10 +59,37 @@ class hall_effect_thread(threading.Thread):
 
 			# find a serial port if one hasn't been found yet
 			if self.ser_port == None:
-				port_name = self.find_serial_ports()
-				if not(port_name == None):
-					self.ser_port = serial.Serial(port_name, self.baud, timeout=self.ser_timeout)
-					print("Initialized car's communication serial port at " + self.ser_port.name)
+				# find all available serial ports in the file system
+				port_names = self.find_serial_ports()
+				if not(port_names == None):
+					for port in port_names:
+						print('Initializing',super().getName(), 'serial port at', port)
+						# open the serial port under consideration
+						self.ser_port = serial.Serial(port, self.baud, timeout=self.ser_timeout)
+						# begin the handshake process with the Arduino
+						self.ser_port.write('handshake_type\n'.encode('ascii'))
+						print('Handshaking with hall effect arduino.')
+						# wait for the Arduino to send back its type (eg, "hall_effect" or "peripheral_can")
+						handshake_success = False
+						handshake_wait_init = time.time()
+						# only wait for handshaking to complete for a couple seconds 
+						while time.time() - handshake_wait_init < self.handshake_wait_interval:
+							ser_in = self.ser_port.readline().decode('ascii')[:-2]
+							#print('serial from arduino ', ser_in)
+							# check to see if the correct Arduino responded 
+							if ser_in == 'hall_effect':
+								# if it did, keep this serial port and stop looking at the others
+								print('Successful handshake with hall effect arduino.')
+								handshake_success = True
+								break
+
+						if handshake_success:
+							print("Initialized hall effect arduino serial port at " + self.ser_port.name)
+							self.ser_port.write('handshake_ok'.encode('ascii'))
+							break
+						else:
+							self.ser_port.close()
+							self.ser_port = None
 
 			# only proceed if a serial port has been found
 			else:
@@ -89,10 +117,14 @@ class hall_effect_thread(threading.Thread):
 
 	def join(self):
 
-		print(super().getName() + " thread is terminating.")
+		print(super().getName() + " is terminating.")
 		self.active.clear()
-		# close serial port, if one is active
+
 		if not(self.ser_port == None):
+			# send out a message to the hall effect arduino to reboot itself
+			self.ser_port.write('reboot_now\n'.encode('ascii'))
+			print('Rebooting hall effect arduino.')
+			# close serial port, if one is active
 			self.ser_port.close()
 
 		super().join(timeout=None)
@@ -117,22 +149,8 @@ class hall_effect_thread(threading.Thread):
 
 		process_serial = None
 		serial_port = None
-		ports_avail = glob.glob('/dev/tty[A-Za-z]*')
-		ser_port = None
-
-		for port in ports_avail:
-			try:
-				serial_port = serial.Serial(port)
-				serial_port.close()
-				print("Serial port found: %s" % port)
-				# we only want one serial port, so break if one is found
-				ser_port = port
-				break										
-			#except (OSError, serial.SerialException):
-			except:
-				pass   
-
-		return ser_port
+		ports_avail = glob.glob('/dev/ttyA*')
+		return ports_avail
 
 
 	def is_int(self, num):
