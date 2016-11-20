@@ -38,19 +38,21 @@ if __name__ == '__main__':
     sample_freq_r.put(50)
 
     # define and launch hall effect thread
-    hall_eff_thread = hall_effect_thread(115200, 10E-3, sample_freq_r.get(), speed_r, torque_r, time_r)
+    hall_eff_thread = hall_effect_thread(115200, 50E-3, sample_freq_r, speed_r, torque_r, time_r)
     hall_eff_thread.start()
 
-    # launch websocket and run it forever
+    # get an asyncio loop object
     loop = asyncio.get_event_loop()
+    # define a websocket
     server = websockets.serve(data_transmission, '127.0.0.1', 8001)
+    # launch the websocket in the asyncio loop
     loop.run_until_complete(server)
+    # run the asyncio loop forever until it is interrupted (Ctrl-C keyboard interrupt, for example)
     try:
         loop.run_forever()
     except:
         print('\nTerminating asyncio loop.')
         loop.close()
-
 
 
 

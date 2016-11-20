@@ -3,7 +3,7 @@ import threading, serial, glob, time, random
 
 class hall_effect_thread(threading.Thread):
 
-	def __init__(self, my_baud, my_ser_timeout, my_sample_freq, my_speed_ref, my_torque_ref, my_time_ref):
+	def __init__(self, my_baud, my_ser_timeout, my_sample_freq_ref, my_speed_ref, my_torque_ref, my_time_ref):
 
 		super().__init__(name="hall effect thread")
 
@@ -13,8 +13,9 @@ class hall_effect_thread(threading.Thread):
 		# store passed in parameters
 		self.baud = my_baud
 		self.ser_timeout = my_ser_timeout
-		self.sample_freq = my_sample_freq # Hz
-		self.sample_period = 1/my_sample_freq # s
+		self.sample_freq_ref = my_sample_freq_ref # Hz
+		self.sample_freq = self.sample_freq_ref.get()
+		self.sample_period = 1/self.sample_freq # s
 		self.speed_ref = my_speed_ref
 		self.torque_ref = my_torque_ref
 		self.time_ref = my_time_ref
@@ -66,6 +67,8 @@ class hall_effect_thread(threading.Thread):
 						print('Initializing',super().getName(), 'serial port at', port)
 						# open the serial port under consideration
 						self.ser_port = serial.Serial(port, self.baud, timeout=self.ser_timeout)
+						# wait for Arduino to initialize its Serial stuff before handshaking
+						time.sleep(2000E-3)
 						# begin the handshake process with the Arduino
 						self.ser_port.write('handshake_type\n'.encode('ascii'))
 						print('Handshaking with hall effect arduino.')
@@ -147,7 +150,6 @@ class hall_effect_thread(threading.Thread):
 
 	def find_serial_ports(self):
 
-		process_serial = None
 		serial_port = None
 		ports_avail = glob.glob('/dev/ttyA*')
 		return ports_avail
