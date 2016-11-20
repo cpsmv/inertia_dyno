@@ -17,9 +17,9 @@ void setup() {
   // start serial uart stuff
   Serial.begin(BAUD_RATE);
   
-  /*pinMode(HALL_EFFECT_LEFT, INPUT);
+  pinMode(HALL_EFFECT_LEFT, INPUT);
   attachInterrupt(digitalPinToInterrupt(HALL_EFFECT_LEFT), hall_effect_left_isr, FALLING);
-  pinMode(HALL_EFFECT_RIGHT, INPUT);
+  /*pinMode(HALL_EFFECT_RIGHT, INPUT);
   attachInterrupt(digitalPinToInterrupt(HALL_EFFECT_RIGHT), hall_effect_right_isr, FALLING);*/
 
   // Handshake with the python script before sending out data
@@ -52,13 +52,13 @@ void setup() {
 }
 
 void loop() {
-  // Make bs speed data (for offline testing)
-  static uint16_t skip = 0;
+  // Make bs speed data (for testing while not connected to hall effect wheel)
+  /*static uint16_t skip = 0;
   if (skip == 0) {
     num_teeth_left++;
     num_teeth_right++;
   }
-  skip<10000 ? skip++ : skip=0;
+  skip<10000 ? skip++ : skip=0;*/
 
   if (Serial.available()) {
     // Read in any bytes from Python
@@ -83,8 +83,8 @@ void data_to_python_isr(void) {
   Serial.print("R");
   Serial.println(num_teeth_left);
   // Reset the number of teeth that have passed
-  //num_teeth_left = 0;
-  //num_teeth_right = 0;
+  num_teeth_left = 0;
+  num_teeth_right = 0;
 }
 
 

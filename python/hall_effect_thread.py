@@ -1,5 +1,5 @@
 import threading, serial, glob, time, random
-
+import numpy as np
 
 class hall_effect_thread(threading.Thread):
 
@@ -25,9 +25,10 @@ class hall_effect_thread(threading.Thread):
 		self.init_time = 0
 		self.handshake_wait_interval = 2 # seconds
 
-		# Arduino data rate
-		self.arduino_data_rate = 5 # Hz
+		# Data rate
+		self.arduino_data_rate = 200 # Hz
 		self.arduino_data_period = 1/self.arduino_data_rate
+		self.decimation_factor = int(self.arduino_data_rate/self.sample_freq)
 
 
 	def start(self):
@@ -44,6 +45,7 @@ class hall_effect_thread(threading.Thread):
 		self.time_ref.put(self.init_time)
 		self.speed_ref.put(0)
 		self.torque_ref.put(0)
+		left_flywheel_rpm_vector = np.zeros(self.decimation_factor)
 
 		"""
 		while True:
@@ -108,9 +110,12 @@ class hall_effect_thread(threading.Thread):
 
 					formatted = self.parse_data(line)
 					if not len(formatted) == 0:
-						left_flywheel_rpm = formatted[0]/168*60/self.arduino_data_period
-						self.speed_ref.put(left_flywheel_rpm)
+						left_flywheel_rpm_vector[0] = formatted[0]/168*60/self.arduino_data_period
+						# perform decimation with a moving average filter
+						curr_rpm = (1/self.decimation_factor)*np.sum(left_flywheel_rpm_vector)
+						self.speed_ref.put(curr_rpm)
 						self.torque_ref.put(random.uniform(0,50))
+						left_flywheel_rpm_vector[1:] = left_flywheel_rpm_vector[0:len(left_flywheel_rpm_vector)-1]
 
 				else: 
 					continue

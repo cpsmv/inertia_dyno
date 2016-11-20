@@ -15,9 +15,11 @@ torque_r = shared_ref(Lock(), 1E-5)
 time_r = shared_ref(Lock(), 1E-5)
 sample_freq_r = shared_ref(Lock(), 1E-5)
 
+websocket_update_freq = 50
+
 async def data_transmission(websocket, path):
 
-    data = "f%d" % sample_freq_r.get()
+    data = "f%d" % websocket_update_freq
     await websocket.send(data)
 
     while True:
@@ -27,15 +29,15 @@ async def data_transmission(websocket, path):
         await websocket.send(data)
         data = "t%.2f" % time_r.get()
         await websocket.send(str(data))
-        await asyncio.sleep(1/sample_freq_r.get())
+        await asyncio.sleep(1/websocket_update_freq)
 
 #------------------------------------------------------------------------------------------------------------------
 #   M A I N  
 #------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-    # initialize sample frequency to 50Hz
-    sample_freq_r.put(50)
+    # initialize sample frequency to 5Hz
+    sample_freq_r.put(5)
 
     # define and launch hall effect thread
     hall_eff_thread = hall_effect_thread(115200, 50E-3, sample_freq_r, speed_r, torque_r, time_r)
