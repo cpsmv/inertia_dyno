@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Inertia Dyno Live Feed</title>
+	<link href="examples.css" rel="stylesheet" type="text/css">
+	<script language="javascript" type="text/javascript" src="jquery.js"></script>
+	<script language="javascript" type="text/javascript" src="jquery.flot.js"></script>
+	<script language="javascript" type="text/javascript" src="jquery.flot.axislabels.js"></script>
+	<script language="javascript" type="text/javascript" src="dyno_websocket.js"></script>
+</head>
+<body>
+
+	<div id="header">
+		<img src="smv_logo.png" width=100px height=100px float="left">
+		<div id="header_title"><h2>Inertia Dyno Live Feed</h2></div>
+	</div>
+
+	<div id="content">
+
+		<div class="demo-container">
+			<div id="speed_plot" class="demo-placeholder"></div>
+		</div>
+
+		<div class="demo-container">
+			<div id="torque_plot" class="demo-placeholder"></div>
+		</div>
+
+		<p>Time between updates: <input id="updateInterval" type="text" value="" style="text-align: right; width:5em"> milliseconds</p>
+
+	</div>
+
+	<div id="footer">
+		Created by Alex Pink for the 2016-2017 Cal Poly Supermileage team.
+	</div>
+
+</body>
+</html>
