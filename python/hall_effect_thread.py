@@ -1,9 +1,8 @@
 import threading, serial, glob, time, random
-import numpy as np
 
 class hall_effect_thread(threading.Thread):
 
-	def __init__(self, my_baud, my_ser_timeout, my_sample_freq_ref, my_speed_ref, my_torque_ref, my_time_ref):
+	def __init__(self, my_baud, my_ser_timeout, my_raw_rpm_ref):
 
 		super().__init__(name="hall effect thread")
 
@@ -13,22 +12,15 @@ class hall_effect_thread(threading.Thread):
 		# store passed in parameters
 		self.baud = my_baud
 		self.ser_timeout = my_ser_timeout
-		self.sample_freq_ref = my_sample_freq_ref # Hz
-		self.sample_freq = self.sample_freq_ref.get()
-		self.sample_period = 1/self.sample_freq # s
-		self.speed_ref = my_speed_ref
-		self.torque_ref = my_torque_ref
-		self.time_ref = my_time_ref
+		self.raw_rpm_ref = my_raw_rpm_ref
 
 		# intialization of important variables
 		self.ser_port = None
 		self.init_time = 0
 		self.handshake_wait_interval = 2 # seconds
 
-		# Data rate
-		self.arduino_data_rate = 200 # Hz
-		self.arduino_data_period = 1/self.arduino_data_rate
-		self.decimation_factor = int(self.arduino_data_rate/self.sample_freq)
+		# mechanical information
+		self.moment_of_inertia = 50E-3
 
 
 	def start(self):
@@ -40,26 +32,23 @@ class hall_effect_thread(threading.Thread):
 
 	def run(self):
 
-		f = open('out.csv', 'w')
 		self.init_time = time.time()
-		self.time_ref.put(self.init_time)
-		self.speed_ref.put(0)
-		self.torque_ref.put(0)
-		left_flywheel_rpm_vector = np.zeros(self.decimation_factor)
+		self.raw_rpm_ref.put(0)
+		curr_rpm = 0
+		prev_rpm = 0
+		curr_time = 0
+		prev_time = 0
 
 		"""
 		while True:
-			self.speed_ref.put(random.uniform(0,1400))
+			self.rpm_ref.put(random.uniform(0,1400))
 			self.torque_ref.put(random.uniform(0,50))
 			self.time_ref.put(time.time()-self.init_time)
 			time.sleep(20E-3)"""
 
 		# loop forever until thread is terminated
 		while self.active.isSet():
-
-			# IMPORTANT: update time shared reference before reading serial so flotchart plotting isn't choppy
-			self.time_ref.put(time.time()-self.init_time)
-
+			
 			# find a serial port if one hasn't been found yet
 			if self.ser_port == None:
 				# find all available serial ports in the file system
@@ -84,12 +73,11 @@ class hall_effect_thread(threading.Thread):
 							# check to see if the correct Arduino responded 
 							if ser_in == 'hall_effect':
 								# if it did, keep this serial port and stop looking at the others
-								print('Successful handshake with hall effect arduino.')
+								print('Successful handshake with hall effect arduino at '+self.ser_port.name)
 								handshake_success = True
 								break
 
 						if handshake_success:
-							print("Initialized hall effect arduino serial port at " + self.ser_port.name)
 							self.ser_port.write('handshake_ok'.encode('ascii'))
 							break
 						else:
@@ -104,24 +92,17 @@ class hall_effect_thread(threading.Thread):
 
 				# only continue if the serial port did not timeout and successfully read a line
 				if not line_in == b'' and not line_in == b'\n':
-					#convert line from b'xxx\r\n' to xxx
-					line = line_in.decode('utf-8')[:-1]
-					#print("Raw Serial: ", line)
+					
+					time_between_teeth_us = int(line_in.decode('ascii')[:-2])
+					time_between_teeth = time_between_teeth_us/1E7
+					curr_rpm = (1/168)/(time_between_teeth)
 
-					formatted = self.parse_data(line)
-					if not len(formatted) == 0:
-						left_flywheel_rpm_vector[0] = formatted[0]/168*60/self.arduino_data_period
-						# perform decimation with a moving average filter
-						curr_rpm = (1/self.decimation_factor)*np.sum(left_flywheel_rpm_vector)
-						self.speed_ref.put(curr_rpm)
-						self.torque_ref.put(random.uniform(0,50))
-						left_flywheel_rpm_vector[1:] = left_flywheel_rpm_vector[0:len(left_flywheel_rpm_vector)-1]
+					# update thread references
+					self.raw_rpm_ref.put(curr_rpm)
 
 				else: 
+					self.raw_rpm_ref.put(0)
 					continue
-				
-		f.close()
-
 
 	def join(self):
 

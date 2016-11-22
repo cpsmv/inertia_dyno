@@ -1,13 +1,10 @@
 #include <TimerOne.h>
-#include <avr/wdt.h> //for restarting the Arduino on command
+#include <avr/wdt.h> //used for restarting the Arduino on command
 
 #define HALL_EFFECT_LEFT 2
 #define HALL_EFFECT_RIGHT 3
 #define SAMPLE_PERIOD_US 5000 // microseconds (200 Hz sample rate)
 #define BAUD_RATE 115200 
-
-uint8_t num_teeth_left = 0;
-uint8_t num_teeth_right = 0;
 
 void setup() {
 
@@ -19,8 +16,6 @@ void setup() {
   
   pinMode(HALL_EFFECT_LEFT, INPUT);
   attachInterrupt(digitalPinToInterrupt(HALL_EFFECT_LEFT), hall_effect_left_isr, FALLING);
-  /*pinMode(HALL_EFFECT_RIGHT, INPUT);
-  attachInterrupt(digitalPinToInterrupt(HALL_EFFECT_RIGHT), hall_effect_right_isr, FALLING);*/
 
   // Handshake with the python script before sending out data
   bool python_handshake = false;
@@ -44,21 +39,9 @@ void setup() {
       }
     }
   }
-
-  // Handshake completed successfully
-  // Set timer1 to a 200Hz rate and attach an ISR which sends out the speed data to the timer's interrupt
-  Timer1.initialize(SAMPLE_PERIOD_US);  // send data every 5000 us (200Hz)
-  Timer1.attachInterrupt(data_to_python_isr);
 }
 
 void loop() {
-  // Make bs speed data (for testing while not connected to hall effect wheel)
-  /*static uint16_t skip = 0;
-  if (skip == 0) {
-    num_teeth_left++;
-    num_teeth_right++;
-  }
-  skip<10000 ? skip++ : skip=0;*/
 
   if (Serial.available()) {
     // Read in any bytes from Python
@@ -72,27 +55,27 @@ void loop() {
       // Since we won't be "kicking the dog", this will restart the Arduino upon expiration
       wdt_enable(WDTO_250MS);
     }
+    /*else if (ser_in_str == "l") {
+      hall_effect_left_isr();
+    }*/
   }
 }
 
-void data_to_python_isr(void) {
-  // Send out speed data
-  Serial.print("L");
-  Serial.print(num_teeth_left);
-  Serial.print(";");
-  Serial.print("R");
-  Serial.println(num_teeth_left);
-  // Reset the number of teeth that have passed
-  num_teeth_left = 0;
-  num_teeth_right = 0;
-}
-
-
 void hall_effect_left_isr(void) {
-  num_teeth_left++;
-}
-
-void hall_effect_right_isr(void) {
-  num_teeth_right++;
+  static uint32_t last_time = 0;
+  if (last_time != 0) {
+    uint32_t new_time = micros();
+    uint32_t time_diff = new_time-last_time;
+    /*Serial.write(time_diff>>24);
+    Serial.write(time_diff>>16);
+    Serial.write(time_diff>>8);
+    Serial.write(time_diff);
+    Serial.print('\n');*/
+    Serial.println(time_diff);
+    last_time = new_time;
+  }
+  else {
+    last_time = micros();
+  }
 }
 

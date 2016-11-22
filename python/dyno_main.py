@@ -1,7 +1,8 @@
 import time, asyncio, websockets, random
-from hall_effect_thread import hall_effect_thread
-from thread_safe import shared_ref
 from threading import Lock
+from hall_effect_thread import hall_effect_thread
+from dyno_data_filter_thread import dyno_data_filter_thread
+from thread_safe import shared_ref
 
 #------------------------------------------------------------------------------------------------------------------
 #   D Y N O   P A R A M E T E R S
@@ -10,7 +11,8 @@ from threading import Lock
 #------------------------------------------------------------------------
 #   T H R E A D   S A F E   R E F E R E N C E S
 #------------------------------------------------------------------------
-speed_r = shared_ref(Lock(), 1E-5)
+raw_rpm_r = shared_ref(Lock(), 1E-5)
+rpm_r = shared_ref(Lock(), 1E-5)
 torque_r = shared_ref(Lock(), 1E-5)
 time_r = shared_ref(Lock(), 1E-5)
 sample_freq_r = shared_ref(Lock(), 1E-5)
@@ -23,11 +25,11 @@ async def data_transmission(websocket, path):
     await websocket.send(data)
 
     while True:
-        data = "s%.0f" % speed_r.get()
+        data = "s%.5f" % rpm_r.get()
         await websocket.send(data)
-        data = "T%.1f" % torque_r.get()
+        data = "T%.5f" % torque_r.get()
         await websocket.send(data)
-        data = "t%.2f" % time_r.get()
+        data = "t%.5f" % time_r.get()
         await websocket.send(str(data))
         await asyncio.sleep(1/websocket_update_freq)
 
@@ -40,8 +42,12 @@ if __name__ == '__main__':
     sample_freq_r.put(5)
 
     # define and launch hall effect thread
-    hall_eff_thread = hall_effect_thread(115200, 50E-3, sample_freq_r, speed_r, torque_r, time_r)
+    hall_eff_thread = hall_effect_thread(115200, 50E-3, raw_rpm_r)
     hall_eff_thread.start()
+
+    # define and launch dyno data filter thread
+    dyno_filt_thread = dyno_data_filter_thread(raw_rpm_r, rpm_r, torque_r, time_r)
+    dyno_filt_thread.start()
 
     # get an asyncio loop object
     loop = asyncio.get_event_loop()
