@@ -1,4 +1,4 @@
-$(function() {
+$(document).ready(function() {
 
 	var speed_plot = $.plot("#speed_plot", [ [0,0] ], {
 		series: {
@@ -45,7 +45,7 @@ $(function() {
 		},
 		yaxes: [{
 			axisLabel: 'Torque (Nm)',
-			axisLabelPadding: 6
+			axisLabelPadding: 20
 		}],
 		xaxis: {
 			show: true
@@ -109,4 +109,5 @@ $(function() {
 	}
 
 	draw_plots();
+
 });

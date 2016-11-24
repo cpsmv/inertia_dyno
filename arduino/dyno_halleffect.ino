@@ -6,6 +6,8 @@
 #define SAMPLE_PERIOD_US 5000 // microseconds (200 Hz sample rate)
 #define BAUD_RATE 115200 
 
+uint16_t blah = 30020;
+
 void setup() {
 
   // Turn off the watchdog timer
@@ -14,8 +16,8 @@ void setup() {
   // start serial uart stuff
   Serial.begin(BAUD_RATE);
   
-  pinMode(HALL_EFFECT_LEFT, INPUT);
-  attachInterrupt(digitalPinToInterrupt(HALL_EFFECT_LEFT), hall_effect_left_isr, FALLING);
+  /*pinMode(HALL_EFFECT_LEFT, INPUT);
+  attachInterrupt(digitalPinToInterrupt(HALL_EFFECT_LEFT), hall_effect_left_isr, FALLING);*/
 
   // Handshake with the python script before sending out data
   bool python_handshake = false;
@@ -39,6 +41,9 @@ void setup() {
       }
     }
   }
+
+  Timer1.initialize(blah);
+  Timer1.attachInterrupt(hall_effect_left_isr);
 }
 
 void loop() {
@@ -66,16 +71,29 @@ void hall_effect_left_isr(void) {
   if (last_time != 0) {
     uint32_t new_time = micros();
     uint32_t time_diff = new_time-last_time;
-    /*Serial.write(time_diff>>24);
-    Serial.write(time_diff>>16);
-    Serial.write(time_diff>>8);
-    Serial.write(time_diff);
-    Serial.print('\n');*/
-    Serial.println(time_diff);
+    if (time_diff <= 255) {
+      Serial.print((char)time_diff);
+      Serial.print('\n');
+    }
+    else if (time_diff <= 65535) {
+      Serial.print((char)(time_diff>>8));
+      Serial.print((char)time_diff);
+      Serial.print('\n');
+    }
+    else {
+      Serial.print((char)time_diff>>24);
+      Serial.print((char)time_diff>>16);
+      Serial.print((char)time_diff>>8);
+      Serial.print((char)time_diff);
+      Serial.print('\n');
+    }
+    //Serial.println(time_diff);
     last_time = new_time;
   }
   else {
     last_time = micros();
   }
+  blah = blah - 40;
+  Timer1.setPeriod(blah);
 }
 

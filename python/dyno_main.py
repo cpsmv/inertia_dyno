@@ -42,7 +42,7 @@ if __name__ == '__main__':
     sample_freq_r.put(5)
 
     # define and launch hall effect thread
-    hall_eff_thread = hall_effect_thread(115200, 50E-3, raw_rpm_r)
+    hall_eff_thread = hall_effect_thread(115200, 500E-3, raw_rpm_r)
     hall_eff_thread.start()
 
     # define and launch dyno data filter thread
