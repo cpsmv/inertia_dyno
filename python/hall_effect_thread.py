@@ -105,10 +105,7 @@ class hall_effect_thread(threading.Thread):
 					time_between_teeth_s = time_between_teeth_us/1E6
 					curr_rpm = (1/168)/(time_between_teeth_s)*60
 
-					print(line_in, time_between_teeth_us, curr_rpm)
-
 					# update thread references
-					#self.raw_rpm_ref.put(curr_rpm)
 					self.raw_rpm_ref.put(curr_rpm)
 
 				else: 

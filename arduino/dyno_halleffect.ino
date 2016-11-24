@@ -6,8 +6,6 @@
 #define SAMPLE_PERIOD_US 5000 // microseconds (200 Hz sample rate)
 #define BAUD_RATE 115200 
 
-uint16_t blah = 30020;
-
 void setup() {
 
   // Turn off the watchdog timer
@@ -16,8 +14,8 @@ void setup() {
   // start serial uart stuff
   Serial.begin(BAUD_RATE);
   
-  /*pinMode(HALL_EFFECT_LEFT, INPUT);
-  attachInterrupt(digitalPinToInterrupt(HALL_EFFECT_LEFT), hall_effect_left_isr, FALLING);*/
+  pinMode(HALL_EFFECT_LEFT, INPUT);
+  attachInterrupt(digitalPinToInterrupt(HALL_EFFECT_LEFT), hall_effect_left_isr, FALLING);
 
   // Handshake with the python script before sending out data
   bool python_handshake = false;
@@ -41,9 +39,6 @@ void setup() {
       }
     }
   }
-
-  Timer1.initialize(blah);
-  Timer1.attachInterrupt(hall_effect_left_isr);
 }
 
 void loop() {
@@ -60,9 +55,6 @@ void loop() {
       // Since we won't be "kicking the dog", this will restart the Arduino upon expiration
       wdt_enable(WDTO_250MS);
     }
-    /*else if (ser_in_str == "l") {
-      hall_effect_left_isr();
-    }*/
   }
 }
 
@@ -93,7 +85,5 @@ void hall_effect_left_isr(void) {
   else {
     last_time = micros();
   }
-  blah = blah - 40;
-  Timer1.setPeriod(blah);
 }
 
