@@ -68,7 +68,11 @@ class hall_effect_thread(threading.Thread):
 						handshake_wait_init = time.time()
 						# only wait for handshaking to complete for a couple seconds 
 						while time.time() - handshake_wait_init < self.handshake_wait_interval:
-							ser_in = self.ser_port.readline().decode('ascii')[:-2]
+							ser_in = None
+							try:
+								ser_in = self.ser_port.readline().decode('ascii')[:-2]
+							except:
+								pass
 							#print('serial from arduino ', ser_in)
 							# check to see if the correct Arduino responded 
 							if ser_in == 'hall_effect':
@@ -93,23 +97,23 @@ class hall_effect_thread(threading.Thread):
 				# only continue if the serial port did not timeout and successfully read a line
 				if not line_in == b'':
 					num_bytes = len(line_in)
-					time_between_teeth_us = 1
+					time_between_teeth_us = None
 					if num_bytes == 1:
 						time_between_teeth_us = line_in[0]
 						#print(line_in, line_in[0])
 					elif num_bytes == 2:
 						time_between_teeth_us = (2**8)*line_in[0] + line_in[1]
 						#print(line_in, 256*line_in[0], line_in[1])
-					elif num_bytes == 4:
-						time_between_teeth_us = (2**24)*line_in[0] + (2**16)*line_in[1] + (2**8)*line_in[2] + line_in[3]
+					elif num_bytes == 3:
+						time_between_teeth_us = (2**16)*line_in[0] + (2**8)*line_in[1] + line_in[2]
+
 					time_between_teeth_s = time_between_teeth_us/1E6
 					curr_rpm = (1/168)/(time_between_teeth_s)*60
-
 					# update thread references
 					self.raw_rpm_ref.put(curr_rpm)
 
 				else: 
-					#self.raw_rpm_ref.put(0)
+					self.raw_rpm_ref.put(0)
 					continue
 				
 

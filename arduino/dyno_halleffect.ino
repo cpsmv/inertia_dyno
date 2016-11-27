@@ -63,23 +63,24 @@ void hall_effect_left_isr(void) {
   if (last_time != 0) {
     uint32_t new_time = micros();
     uint32_t time_diff = new_time-last_time;
-    if (time_diff <= 255) {
-      Serial.print((char)time_diff);
-      Serial.print('\n');
-    }
-    else if (time_diff <= 65535) {
-      Serial.print((char)(time_diff>>8));
-      Serial.print((char)time_diff);
-      Serial.print('\n');
-    }
-    else {
-      Serial.print((char)time_diff>>24);
-      Serial.print((char)time_diff>>16);
-      Serial.print((char)time_diff>>8);
-      Serial.print((char)time_diff);
-      Serial.print('\n');
-    }
+    if (time_diff > 0) {
+      if (time_diff < 256) {
+        Serial.write(time_diff);
+        Serial.print('\n');
+      }
+      else if (time_diff < 65536) {
+        Serial.write(time_diff>>8);
+        Serial.write(time_diff);
+        Serial.print('\n');
+      }
+      else if (time_diff < 16777216) {
+        Serial.write(time_diff>>16);
+        Serial.write(time_diff>>8);
+        Serial.write(time_diff);
+        Serial.print('\n');
+      }
     //Serial.println(time_diff);
+    }
     last_time = new_time;
   }
   else {
