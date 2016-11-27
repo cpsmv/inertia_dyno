@@ -2,7 +2,7 @@ import threading, serial, glob, time, random
 
 class hall_effect_thread(threading.Thread):
 
-	def __init__(self, my_baud, my_ser_timeout, my_raw_rpm_ref):
+	def __init__(self, my_baud, my_ser_timeout, my_raw_rpm_res):
 
 		super().__init__(name="hall effect thread")
 
@@ -12,7 +12,7 @@ class hall_effect_thread(threading.Thread):
 		# store passed in parameters
 		self.baud = my_baud
 		self.ser_timeout = my_ser_timeout
-		self.raw_rpm_ref = my_raw_rpm_ref
+		self.raw_rpm_res = my_raw_rpm_res
 
 		# intialization of important variables
 		self.ser_port = None
@@ -33,18 +33,11 @@ class hall_effect_thread(threading.Thread):
 	def run(self):
 
 		self.init_time = time.time()
-		self.raw_rpm_ref.put(0)
+		self.raw_rpm_res.put(0)
 		curr_rpm = 0
 		prev_rpm = 0
 		curr_time = 0
 		prev_time = 0
-
-		"""
-		while True:
-			self.rpm_ref.put(random.uniform(0,1400))
-			self.torque_ref.put(random.uniform(0,50))
-			self.time_ref.put(time.time()-self.init_time)
-			time.sleep(20E-3)"""
 
 		# loop forever until thread is terminated
 		while self.active.isSet():
@@ -109,11 +102,11 @@ class hall_effect_thread(threading.Thread):
 
 					time_between_teeth_s = time_between_teeth_us/1E6
 					curr_rpm = (1/168)/(time_between_teeth_s)*60
-					# update thread references
-					self.raw_rpm_ref.put(curr_rpm)
+					# update thread resources
+					self.raw_rpm_res.put(curr_rpm)
 
 				else: 
-					self.raw_rpm_ref.put(0)
+					self.raw_rpm_res.put(0)
 					continue
 				
 

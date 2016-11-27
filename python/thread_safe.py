@@ -1,9 +1,9 @@
 from threading import Lock
 
 #------------------------------------------------------------------------------------------------------------------
-#   S H A R E D   R E F E R E N C E   C L A S S
+#   S H A R E D   R E S O U R C E   C L A S S
 #------------------------------------------------------------------------------------------------------------------
-class shared_ref():
+class shared_res():
 
 	def __init__(self, my_lock, my_timeout, my_val=None): 
 
