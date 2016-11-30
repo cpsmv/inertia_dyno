@@ -2,7 +2,7 @@ import threading, time
 
 class data_log_thread(threading.Thread):
 
-	def __init__(self, my_sample_freq_res, my_test_time_res, my_thread_timing):
+	def __init__(self, my_sample_freq, my_test_time_res, my_thread_timing):
 
 		super().__init__(name="data log thread")
 
@@ -10,7 +10,7 @@ class data_log_thread(threading.Thread):
 		self.active = threading.Event()
 
 		# store passed in parameters
-		self.sample_freq_res = my_sample_freq_res
+		self.sample_freq = my_sample_freq
 		self.test_time_res = my_test_time_res
 		self.thread_timing = my_thread_timing
 
@@ -19,7 +19,7 @@ class data_log_thread(threading.Thread):
 
 	def start(self):
 
-		print(super().getName() + " is starting.\n")
+		print(super().getName() + " is starting.")
 		self.active.set()
 		super().start()
 
@@ -41,7 +41,7 @@ class data_log_thread(threading.Thread):
 			self.test_time_res.put(curr_test_time)
 
 			# check if it is time to store data (also grab the most up-to-date data sampling time, updated by the webserver loop)
-			if curr_test_time - last_test_time > self.sample_freq_res.get():
+			if curr_test_time - last_test_time > self.sample_freq:
 				# store data
 
 				# write to CSV in this loop??

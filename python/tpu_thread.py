@@ -1,8 +1,8 @@
 import threading, serial, glob, time, random
 
-class hall_effect_thread(threading.Thread):
+class tpu_thread(threading.Thread):
 
-	def __init__(self, my_baud, my_ser_timeout, my_raw_rpm_res):
+	def __init__(self, my_baud, my_ser_timeout, my_rpm_unfilt_q):
 
 		super().__init__(name="hall effect thread")
 
@@ -12,7 +12,7 @@ class hall_effect_thread(threading.Thread):
 		# store passed in parameters
 		self.baud = my_baud
 		self.ser_timeout = my_ser_timeout
-		self.raw_rpm_res = my_raw_rpm_res
+		self.rpm_unfilt_q = my_rpm_unfilt_q
 
 		# intialization of important variables
 		self.ser_port = None
@@ -20,12 +20,12 @@ class hall_effect_thread(threading.Thread):
 		self.handshake_wait_interval = 2 # seconds
 
 		# mechanical information
-		self.moment_of_inertia = 50E-3
+		self.revs_per_tooth = 1/168 # 168 teeth on flywheel
 
 
 	def start(self):
 
-		print(super().getName() + " is starting.\n")
+		print(super().getName() + " is starting.")
 		self.active.set()
 		super().start()
 
@@ -33,7 +33,7 @@ class hall_effect_thread(threading.Thread):
 	def run(self):
 
 		self.init_time = time.time()
-		self.raw_rpm_res.put(0)
+		self.rpm_unfilt_q.put(0)
 		curr_rpm = 0
 		prev_rpm = 0
 		curr_time = 0
@@ -89,24 +89,30 @@ class hall_effect_thread(threading.Thread):
 
 				# only continue if the serial port did not timeout and successfully read a line
 				if not line_in == b'':
+					# determine how many bytes were sent out from the TPU
 					num_bytes = len(line_in)
 					time_between_teeth_us = None
+					# if one byte is sent, the value is < 256
 					if num_bytes == 1:
 						time_between_teeth_us = line_in[0]
-						#print(line_in, line_in[0])
+					# if 2 bytes are sent, the value is 256 <= x < 65536
 					elif num_bytes == 2:
+						# bytes are sent big-endian, so large places come later
 						time_between_teeth_us = (2**8)*line_in[0] + line_in[1]
-						#print(line_in, 256*line_in[0], line_in[1])
+					# if 2 bytes are sent, the value is 65536 <= x < 16,777,216
 					elif num_bytes == 3:
+						# bytes are sent big-endian, so large places come later
 						time_between_teeth_us = (2**16)*line_in[0] + (2**8)*line_in[1] + line_in[2]
 
+					# convert microseconds to seconds
 					time_between_teeth_s = time_between_teeth_us/1E6
-					curr_rpm = (1/168)/(time_between_teeth_s)*60
-					# update thread resources
-					self.raw_rpm_res.put(curr_rpm)
-
+					# convert time between teeth to rpm
+					curr_rpm = self.revs_per_tooth/time_between_teeth_s*60
+					# update thread resources 
+					self.rpm_unfilt_q.put(curr_rpm)
+				# if the serial port expired before reading a line, assume current RPM is 0
 				else: 
-					self.raw_rpm_res.put(0)
+					self.rpm_unfilt_q.put(0)
 					continue
 				
 

@@ -1,23 +1,29 @@
 import time, asyncio, websockets, random
-from threading import Lock
-from hall_effect_thread import hall_effect_thread
+from tpu_thread import tpu_thread
 from dyno_data_filter_thread import dyno_data_filter_thread
 from data_log_thread import data_log_thread
-from thread_safe import shared_res
+from thread_safe import *
 
 #------------------------------------------------------------------------------------------------------------------
 #   D Y N O   P A R A M E T E R S 
 #------------------------------------------------------------------------------------------------------------------
+# data logger sampling frequency
+sample_freq = 50
+# set how fast the test time variable is updated by the data log thread
+thread_update_time = 1E-6
 
 #------------------------------------------------------------------------
 #   T H R E A D   S A F E   R E F E R E N C E S
 #------------------------------------------------------------------------
-raw_rpm_r = shared_res(Lock(), 1E-5)
-rpm_r = shared_res(Lock(), 1E-5)
-torque_r = shared_res(Lock(), 1E-5)
-test_time_r = shared_res(Lock(), 1E-5)
-sample_freq_r = shared_res(Lock(), 1E-5)
+rpm_unfilt_q = queue_c(1E-5)
+rpm_r = shared_res(1E-5)
+torque_r = shared_res(1E-5)
+test_time_r = shared_res(1E-5)
 
+#------------------------------------------------------------------------
+#   W E B S O C K E T   H A N D L E R
+#------------------------------------------------------------------------
+# how often the current data should be sent up to the live display
 websocket_update_freq = 50
 
 async def data_transmission(websocket, path):
@@ -39,21 +45,16 @@ async def data_transmission(websocket, path):
 #------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-    # initialize sample frequency to 5Hz
-    sample_freq_r.put(5)
-    # set thread timing
-    thread_update_time = 1E-6
-
     # define and launch hall effect thread
-    hall_eff_thread = hall_effect_thread(115200, 1000E-3, raw_rpm_r)
-    hall_eff_thread.start()
+    tpu_thread = tpu_thread(115200, 800E-3, rpm_unfilt_q)
+    tpu_thread.start()
 
     # define and launch data log thread 
-    data_log_thread = data_log_thread(sample_freq_r, test_time_r, thread_update_time)
+    data_log_thread = data_log_thread(sample_freq, test_time_r, thread_update_time)
     data_log_thread.start()
 
     # define and launch dyno data filter thread (check 10 times faster than data log updates time, to ensure precise filter sampling)
-    dyno_filt_thread = dyno_data_filter_thread(raw_rpm_r, rpm_r, torque_r, test_time_r, thread_update_time/10)
+    dyno_filt_thread = dyno_data_filter_thread(rpm_unfilt_q, rpm_r, torque_r, thread_update_time/10)
     dyno_filt_thread.start()
 
     # get an asyncio loop object
