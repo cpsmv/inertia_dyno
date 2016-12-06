@@ -16,7 +16,6 @@ class tpu_thread(threading.Thread):
 
 		# intialization of important variables
 		self.ser_port = None
-		self.init_time = 0
 		self.handshake_wait_interval = 2 # seconds
 
 		# mechanical information
@@ -32,12 +31,9 @@ class tpu_thread(threading.Thread):
 
 	def run(self):
 
-		self.init_time = time.time()
-		self.rpm_unfilt_q.put(0)
-		curr_rpm = 0
-		prev_rpm = 0
-		curr_time = 0
-		prev_time = 0
+		# variables for sanity checking
+		prev_num_bytes = 0
+		prev_time_between_teeth_us = 0
 
 		# loop forever until thread is terminated
 		while self.active.isSet():
@@ -84,7 +80,7 @@ class tpu_thread(threading.Thread):
 			# only proceed if a serial port has been found
 			else:
 
-				# Read a line and 
+				# Read a line and the endline character from received string
 				line_in = self.ser_port.readline()[:-1]
 
 				# only continue if the serial port did not timeout and successfully read a line
@@ -94,15 +90,32 @@ class tpu_thread(threading.Thread):
 					time_between_teeth_us = None
 					# if one byte is sent, the value is < 256
 					if num_bytes == 1:
-						time_between_teeth_us = line_in[0]
+						# this checking is necessary because sometimes the information byte sent is '\n'
+						# however, python's readline function considers this the line ending, resulting in a wrong time interpretation
+						# for example, b'\x05\\n\n' is considered only 5 because the second '\n' is never found
+						if prev_num_bytes == 2 and not (prev_time_between_teeth_us > 255 and prev_time_between_teeth_us < 265):
+							time_between_teeth_us = (2**8)*line_in[0] + ord('\n')
+						# the line in can be considered a correct one byte line in
+						else:
+							time_between_teeth_us = line_in[0]
 					# if 2 bytes are sent, the value is 256 <= x < 65536
 					elif num_bytes == 2:
-						# bytes are sent big-endian, so large places come later
-						time_between_teeth_us = (2**8)*line_in[0] + line_in[1]
+						# this checking is necessary because sometimes the information byte sent is '\n'
+						# however, python's readline function considers this the line ending, resulting in a wrong time interpretation
+						# for example, b'\x05\\n\n' is considered only b'\x05' and not b'\x05\n' because the second '\n' is not detected
+						if prev_num_bytes == 3 and not (prev_time_between_teeth_us > 65535 and prev_time_between_teeth_us < 65800):
+							time_between_teeth_us = (2**16)*line_in[0] + (2**8)*line_in[1] + ord('\n')
+						# the line in can be considered a correct two byte line in
+						else:
+							# bytes are sent big-endian, so large places come later
+							time_between_teeth_us = (2**8)*line_in[0] + line_in[1]
 					# if 2 bytes are sent, the value is 65536 <= x < 16,777,216
 					elif num_bytes == 3:
 						# bytes are sent big-endian, so large places come later
 						time_between_teeth_us = (2**16)*line_in[0] + (2**8)*line_in[1] + line_in[2]
+					else:
+						# skip over any other received messages - they are bad
+						continue
 
 					# convert microseconds to seconds
 					time_between_teeth_s = time_between_teeth_us/1E6
@@ -110,6 +123,10 @@ class tpu_thread(threading.Thread):
 					curr_rpm = self.revs_per_tooth/time_between_teeth_s*60
 					# update thread resources 
 					self.rpm_unfilt_q.put(curr_rpm)
+
+					# save this runs information for later
+					prev_time_between_teeth_us = time_between_teeth_us
+					prev_num_bytes = num_bytes
 				# if the serial port expired before reading a line, assume current RPM is 0
 				else: 
 					self.rpm_unfilt_q.put(0)
@@ -124,7 +141,7 @@ class tpu_thread(threading.Thread):
 		if not(self.ser_port == None):
 			# send out a message to the hall effect arduino to reboot itself
 			self.ser_port.write('reboot_now\n'.encode('ascii'))
-			print('Rebooting hall effect arduino.')
+			print('Rebooting tpu arduino.')
 			# close serial port, if one is active
 			self.ser_port.close()
 
@@ -151,25 +168,3 @@ class tpu_thread(threading.Thread):
 		serial_port = None
 		ports_avail = glob.glob('/dev/ttyA*')
 		return ports_avail
-
-
-	def is_int(self, num):
-		try:
-			int(num)
-			return True
-		except ValueError:
-			return False
-	  
-
-	def parse_data(self, data):
-		arr = data.split(";")
-		if (len(arr) >= 2):
-			if (len(arr[0]) > 1 and len(arr[1]) > 1):
-				if ("L" == arr[0][0] and "R" == arr[1][0]):
-					num1 = arr[0][1:]
-					num2 = arr[1][1:]
-					try:
-						return [int(num1), int(num2)]
-					except ValueError:
-						pass
-		return []

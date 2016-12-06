@@ -26,6 +26,7 @@ void setup() {
   // Loop continuously while waiting for Python script initialize and confirm handshake
   while (python_handshake == false) {
     if (Serial.available()){
+      Serial.println("here");
       // Read in the handshake bytes
       char ser_in[15] = "0";
       Serial.readBytesUntil('\n', ser_in, 15);
@@ -42,7 +43,7 @@ void setup() {
     }
   }
   // once handshaking is complete, setup a 1kHz timer that samples the teeth timing at a 1KHz rate
-  Timer1.initialize(1000);
+  Timer1.initialize(200);
   Timer1.attachInterrupt(sampling_isr);
 }
 

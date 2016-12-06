@@ -21,7 +21,7 @@ class dyno_data_filter_thread(threading.Thread):
 		# filter variables
 		self.filter_sample_freq = 1000 # Hz, hardcoded into Arduino
 		self.filter_sample_period = 1/self.filter_sample_freq # s
-		self.filter_length_M = 21
+		self.filter_length_M = 51
 
 		# mechanical information
 		self.moment_of_inertia = 50E-3
@@ -48,12 +48,11 @@ class dyno_data_filter_thread(threading.Thread):
 			new_rpm = self.rpm_unfilt_q.get()
 			# only proceed if a new RPM value was successfully retrieved from the queue
 			if new_rpm != None:
-				print(new_rpm)
 				rpm_vector[0] = new_rpm
 				# filter the raw rpm using a moving average filter
 				rpm_filt_vector[0] = np_sum(rpm_vector)/self.filter_length_M
-				# take the derivative of the filtered rpm data using a 2 point finite difference scheme
-				angular_accel = (rpm_filt_vector[0]-rpm_filt_vector[1])/self.filter_sample_period
+				# take the derivative of the filtered rpm data using a smooth noise differentiator
+				angular_accel = (rpm_vector[0]-rpm_vector[1])/self.filter_sample_period
 				# real time torque equals the dyno's moment of inertia times its angular acceleration 
 				torque_vector[0] = self.moment_of_inertia*angular_accel
 				# filter the torque data (extremely noisy) using a moving average filter
@@ -61,7 +60,7 @@ class dyno_data_filter_thread(threading.Thread):
 
 				# update the rpm and torque shared resources (used by data log thread and webserver asynchronous loop)
 				self.rpm_res.put(rpm_filt_vector[0])
-				self.torque_res.put(torque_filt)
+				self.torque_res.put(new_rpm)
 
 				# shift vector values
 				rpm_vector[1:] = rpm_vector[:rpm_vector.size-1]
