@@ -1,7 +1,5 @@
 import threading, time
-from numpy import zeros as np_zeros
-from numpy import sum as np_sum
-from numpy import ones as np_ones
+from numpy import zeros as np_zeros, sum as np_sum, ones as np_ones, array as np_array
 
 class dyno_data_filter_thread(threading.Thread):
 
@@ -18,10 +16,17 @@ class dyno_data_filter_thread(threading.Thread):
 		self.torque_res = my_torque_res
 		self.thread_timing = my_thread_timing
 
-		# filter variables
+		# filtering variables
 		self.filter_sample_freq = 1000 # Hz, hardcoded into Arduino
 		self.filter_sample_period = 1/self.filter_sample_freq # s
+
+		# low pass filter variables
 		self.filter_length_M = 51
+
+		# smooth noise-robust differentiator - N=9, n=4 (exact on polynomials up to x**4)
+		# see dyno manual for link for more polynomials and differentiation
+		self.diff_num = np_array([2,1,-16,-27,0,27,16,-1,-2])
+		self.diff_denom = 96*self.filter_sample_period 
 
 		# mechanical information
 		self.moment_of_inertia = 50E-3
@@ -52,15 +57,15 @@ class dyno_data_filter_thread(threading.Thread):
 				# filter the raw rpm using a moving average filter
 				rpm_filt_vector[0] = np_sum(rpm_vector)/self.filter_length_M
 				# take the derivative of the filtered rpm data using a smooth noise differentiator
-				angular_accel = (rpm_vector[0]-rpm_vector[1])/self.filter_sample_period
+				angular_accel = np_sum(self.diff_num*rpm_vector[0:self.diff_num.size])/self.diff_denom
 				# real time torque equals the dyno's moment of inertia times its angular acceleration 
 				torque_vector[0] = self.moment_of_inertia*angular_accel
 				# filter the torque data (extremely noisy) using a moving average filter
 				torque_filt = np_sum(torque_vector)/self.filter_length_M
 
-				# update the rpm and torque shared resources (used by data log thread and webserver asynchronous loop)
+				# update the rpm and torque shared resources (consumed by data log thread and webserver asynchronous loop)
 				self.rpm_res.put(rpm_filt_vector[0])
-				self.torque_res.put(new_rpm)
+				self.torque_res.put(torque_vector[0])
 
 				# shift vector values
 				rpm_vector[1:] = rpm_vector[:rpm_vector.size-1]
