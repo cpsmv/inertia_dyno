@@ -34,6 +34,11 @@ class tpu_thread(threading.Thread):
 		# variables for sanity checking
 		prev_num_bytes = 0
 		prev_time_between_teeth_us = 0
+		prev_line_in = []
+		prev_rpm = 0
+		for i in range(0,20):
+			prev_line_in.append(None)
+		i = 0
 
 		# loop forever until thread is terminated
 		while self.active.isSet():
@@ -62,9 +67,8 @@ class tpu_thread(threading.Thread):
 								ser_in = self.ser_port.readline().decode('ascii')[:-2]
 							except:
 								pass
-							#print('serial from arduino ', ser_in)
 							# check to see if the correct Arduino responded 
-							if ser_in == 'hall_effect':
+							if ser_in == 'tpu':
 								# if it did, keep this serial port and stop looking at the others
 								print('Successful handshake with hall effect arduino at '+self.ser_port.name)
 								handshake_success = True
@@ -81,53 +85,28 @@ class tpu_thread(threading.Thread):
 			else:
 
 				# Read a line and the endline character from received string
-				line_in = self.ser_port.readline()[:-1]
+				line_in = self.ser_port.readline()[:-1].decode('ascii')
 
 				# only continue if the serial port did not timeout and successfully read a line
-				if not line_in == b'':
-					# determine how many bytes were sent out from the TPU
-					num_bytes = len(line_in)
-					time_between_teeth_us = None
-					# if one byte is sent, the value is < 256
-					if num_bytes == 1:
-						# this checking is necessary because sometimes the information byte sent is '\n'
-						# however, python's readline function considers this the line ending, resulting in a wrong time interpretation
-						# for example, b'\x05\\n\n' is considered only 5 because the second '\n' is never found
-						if prev_num_bytes == 2 and not (prev_time_between_teeth_us > 255 and prev_time_between_teeth_us < 265):
-							time_between_teeth_us = (2**8)*line_in[0] + ord('\n')
-						# the line in can be considered a correct one byte line in
-						else:
-							time_between_teeth_us = line_in[0]
-					# if 2 bytes are sent, the value is 256 <= x < 65536
-					elif num_bytes == 2:
-						# this checking is necessary because sometimes the information byte sent is '\n'
-						# however, python's readline function considers this the line ending, resulting in a wrong time interpretation
-						# for example, b'\x05\\n\n' is considered only b'\x05' and not b'\x05\n' because the second '\n' is not detected
-						if prev_num_bytes == 3 and not (prev_time_between_teeth_us > 65535 and prev_time_between_teeth_us < 65800):
-							time_between_teeth_us = (2**16)*line_in[0] + (2**8)*line_in[1] + ord('\n')
-						# the line in can be considered a correct two byte line in
-						else:
-							# bytes are sent big-endian, so large places come later
-							time_between_teeth_us = (2**8)*line_in[0] + line_in[1]
-					# if 2 bytes are sent, the value is 65536 <= x < 16,777,216
-					elif num_bytes == 3:
-						# bytes are sent big-endian, so large places come later
-						time_between_teeth_us = (2**16)*line_in[0] + (2**8)*line_in[1] + line_in[2]
-					else:
-						# skip over any other received messages - they are bad
-						continue
+				if line_in != '':
 
+					time_between_teeth_us = int(line_in.lower(), 16)	# 16 = number system base (hex)
 					# convert microseconds to seconds
 					time_between_teeth_s = time_between_teeth_us/1E6
 					# convert time between teeth to rpm
 					curr_rpm = self.revs_per_tooth/time_between_teeth_s*60
-					# update thread resources 
+
 					self.rpm_unfilt_q.put(curr_rpm)
+
+					print(time_between_teeth_us, curr_rpm, line_in)
 
 					# save this runs information for later
 					prev_time_between_teeth_us = time_between_teeth_us
-					prev_num_bytes = num_bytes
-				# if the serial port expired before reading a line, assume current RPM is 0
+					prev_rpm = curr_rpm
+					prev_line_in[1:20] = prev_line_in[0:19]
+					prev_line_in[0] = [line_in, time_between_teeth_us]
+
+				# if the serial port timed-out before reading a line, assume current RPM is 0
 				else: 
 					self.rpm_unfilt_q.put(0)
 					continue

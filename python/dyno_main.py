@@ -32,12 +32,15 @@ async def data_transmission(websocket, path):
     await websocket.send(data)
 
     while True:
-        data = "s%.5f" % rpm_r.get()
-        await websocket.send(data)
-        data = "T%.5f" % torque_r.get()
-        await websocket.send(data)
-        data = "t%.5f" % test_time_r.get()
-        await websocket.send(str(data))
+        try:
+            data = "s%.5f" % rpm_r.get()
+            await websocket.send(data)
+            data = "T%.5f" % torque_r.get()
+            await websocket.send(data)
+            data = "t%.5f" % test_time_r.get()
+            await websocket.send(str(data))
+        except:
+            pass
         await asyncio.sleep(1/websocket_update_freq)
 
 #------------------------------------------------------------------------------------------------------------------
@@ -46,7 +49,7 @@ async def data_transmission(websocket, path):
 if __name__ == '__main__':
 
     # define and launch hall effect thread
-    tpu_thread = tpu_thread(115200, 800E-3, rpm_unfilt_q)
+    tpu_thread = tpu_thread(115200, 50E-3, rpm_unfilt_q)
     tpu_thread.start()
 
     # define and launch data log thread 
