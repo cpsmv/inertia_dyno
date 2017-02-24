@@ -53,7 +53,7 @@ if __name__ == '__main__':
     tpu_thread.start()
 
     # define and launch data log thread 
-    data_log_thread = data_log_thread(sample_freq, test_time_r, thread_update_time)
+    data_log_thread = data_log_thread(sample_freq, thread_update_time, rpm_r, torque_r, test_time_r)
     data_log_thread.start()
 
     # define and launch dyno data filter thread (check 10 times faster than data log updates time, to ensure precise filter sampling)

@@ -1,4 +1,4 @@
-import threading, time
+import threading, time, csv
 from numpy import zeros as np_zeros, sum as np_sum, ones as np_ones, array as np_array
 
 class dyno_data_filter_thread(threading.Thread):
@@ -17,7 +17,7 @@ class dyno_data_filter_thread(threading.Thread):
 		self.thread_timing = my_thread_timing
 
 		# filtering variables
-		self.filter_sample_freq = 1000 # Hz, hardcoded into Arduino
+		self.filter_sample_freq = 200 # Hz, hardcoded into Arduino
 		self.filter_sample_period = 1/self.filter_sample_freq # s
 
 		# low pass filter variables
@@ -45,6 +45,7 @@ class dyno_data_filter_thread(threading.Thread):
 		rpm_vector = np_zeros(self.filter_length_M)
 		rpm_filt_vector = np_zeros(self.filter_length_M)
 		torque_vector = np_zeros(self.filter_length_M)
+		all_rpm = []
 
 		# loop forever until thread is terminated
 		while self.active.isSet():
@@ -54,6 +55,7 @@ class dyno_data_filter_thread(threading.Thread):
 			# only proceed if a new RPM value was successfully retrieved from the queue
 			if new_rpm != None:
 				rpm_vector[0] = new_rpm
+				all_rpm.append(new_rpm)
 				# filter the raw rpm using a moving average filter
 				rpm_filt_vector[0] = np_sum(rpm_vector)/self.filter_length_M
 				# take the derivative of the filtered rpm data using a smooth noise differentiator
@@ -65,7 +67,7 @@ class dyno_data_filter_thread(threading.Thread):
 
 				# update the rpm and torque shared resources (consumed by data log thread and webserver asynchronous loop)
 				self.rpm_res.put(rpm_filt_vector[0])
-				self.torque_res.put(torque_vector[0])
+				self.torque_res.put(rpm_vector[0])
 
 				# shift vector values
 				rpm_vector[1:] = rpm_vector[:rpm_vector.size-1]
@@ -75,6 +77,10 @@ class dyno_data_filter_thread(threading.Thread):
 		# sleep thread according to set timing
 		#time.sleep(self.thread_timing)
 
+		with open('out.csv', 'w', newline='') as csvfile:
+			spamwriter = csv.writer(csvfile, delimiter=',',
+							quotechar='|', quoting=csv.QUOTE_MINIMAL)
+			spamwriter.writerow(all_rpm)
 
 	def join(self):
 

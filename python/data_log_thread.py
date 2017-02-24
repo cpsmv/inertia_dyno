@@ -2,7 +2,7 @@ import threading, time
 
 class data_log_thread(threading.Thread):
 
-	def __init__(self, my_sample_freq, my_test_time_res, my_thread_timing):
+	def __init__(self, my_sample_freq, my_thread_timing, my_rpm_res, my_torque_res, my_test_time_res):
 
 		super().__init__(name="data log thread")
 
@@ -11,8 +11,10 @@ class data_log_thread(threading.Thread):
 
 		# store passed in parameters
 		self.sample_freq = my_sample_freq
-		self.test_time_res = my_test_time_res
 		self.thread_timing = my_thread_timing
+		self.test_time_res = my_test_time_res
+		self.rpm_res = my_rpm_res
+		self.torque_res = my_torque_res
 
 		# sleep the thread every 1 us, effectively updating the test time about that fast
 		self.thread_block_period = 1E-6 

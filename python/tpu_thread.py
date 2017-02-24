@@ -19,7 +19,7 @@ class tpu_thread(threading.Thread):
 		self.handshake_wait_interval = 2 # seconds
 
 		# mechanical information
-		self.revs_per_tooth = 1/168 # 168 teeth on flywheel
+		self.revs_per_data_packet = 4/168 # 168 teeth on flywheel
 
 
 	def start(self):
@@ -56,7 +56,7 @@ class tpu_thread(threading.Thread):
 						time.sleep(2000E-3)
 						# begin the handshake process with the Arduino
 						self.ser_port.write('handshake_type\n'.encode('ascii'))
-						print('Handshaking with hall effect arduino.')
+						print('Handshaking with tpu arduino.')
 						# wait for the Arduino to send back its type (eg, "hall_effect" or "peripheral_can")
 						handshake_success = False
 						handshake_wait_init = time.time()
@@ -94,11 +94,11 @@ class tpu_thread(threading.Thread):
 					# convert microseconds to seconds
 					time_between_teeth_s = time_between_teeth_us/1E6
 					# convert time between teeth to rpm
-					curr_rpm = self.revs_per_tooth/time_between_teeth_s*60
-
+					curr_rpm = self.revs_per_data_packet/time_between_teeth_s*60
+					
 					self.rpm_unfilt_q.put(curr_rpm)
 
-					print(time_between_teeth_us, curr_rpm, line_in)
+					print(time_between_teeth_us, time_between_teeth_s, curr_rpm, line_in)
 
 					# save this runs information for later
 					prev_time_between_teeth_us = time_between_teeth_us
