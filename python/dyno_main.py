@@ -51,6 +51,10 @@ if __name__ == '__main__':
     # define and launch hall effect thread
     tpu_thread = tpu_thread(115200, 50E-3, rpm_unfilt_q)
     tpu_thread.start()
+    
+    # define and launch peripheral and CAN thread
+    p_can_thread = p_can_thread(115200, 50E-3, rpm_unfilt_q) # *****************REVIEW LATER with Pink*****************
+    p_can_thread.start()
 
     # define and launch data log thread 
     data_log_thread = data_log_thread(sample_freq, thread_update_time, rpm_r, torque_r, test_time_r)
