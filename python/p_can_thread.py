@@ -1,6 +1,6 @@
 import threading, serial, glob, time, random
 
-class tpu_thread(threading.Thread):
+class p_can_thread(threading.Thread):
 
 	def __init__(self, my_baud, my_ser_timeout, my_rpm_unfilt_q): # *****************REVIEW LATER with Pink*****************
 
@@ -44,7 +44,7 @@ class tpu_thread(threading.Thread):
 						time.sleep(2000E-3)
 						# begin the handshake process with the Arduino
 						self.ser_port.write('handshake_type\n'.encode('ascii'))
-						print('Handshaking with tpu arduino.')
+						print('Handshaking with CAN arduino.')
 						# wait for the Arduino to send back its type (eg, (hall_effect) "tpu" or (peripheral_can)"can")
 						handshake_success = False
 						handshake_wait_init = time.time()
@@ -58,7 +58,7 @@ class tpu_thread(threading.Thread):
 							# check to see if the correct Arduino responded 
 							if ser_in == 'can':
 								# if it did, keep this serial port and stop looking at the others
-								print('Successful handshake with hall effect arduino at '+self.ser_port.name)
+								print('Successful handshake with CAN arduino at '+self.ser_port.name)
 								handshake_success = True
 								break
 
@@ -78,21 +78,33 @@ class tpu_thread(threading.Thread):
 				# only continue if the serial port did not timeout and successfully read a line
 				if line_in != '':
         
-          # capture can message index and data from Arduino
-          dataindex = int(line_in[0], 10)
+         				# capture can message index and data from Arduino
+         				dataindex = int(line_in[0], 10)
 					temp_data = int(line_in[1:2].lower(), 16)	# 16 = number system base (hex)
-          # Add if statements for different multipliers and adders *****************REVIEW LATER*****************
+          				
+					# Add if statements for different multipliers and adders
+					adder = 0  #Currently all can message data has an adder of 0
+					if dataindex = 0:
+						multiplier = 0.001
+					elif dataindex = 1 or dataindex = 15:
+						multiplier = 1
+					elif (2 <= dataindex <= 14):
+						multiplier = 0.1
+					elif dataindex = 16:
+						multiplier = 10
+					else:
+						multiplier = 0
+					
 					# Apply CAN data multiplier and adder
-          can_data[dataindex] = temp_data*multiplier+adder
+          				can_data[dataindex] = temp_data*multiplier+adder
 
 					print(dataindex, can_data[dataindex])
 					
-					self.can_data.put(can_data) # *****************REVIEW LATER with Pink*****************
-
-				# if the serial port timed-out before reading a line, assume current RPM is 0
-        # *****************REVIEW LATER with Pink***************** What should we do?
+					self.can_data.put(can_data) # *****************Confirm with Pink*****************
+				
 				else: 
-					self.rpm_unfilt_q.put(0)
+				# if the serial port timed-out before reading a line, assume current RPM is 0
+      				# *****************REVIEW LATER with Pink***************** Need to set data =0?
 					continue
 				
 
@@ -104,7 +116,7 @@ class tpu_thread(threading.Thread):
 		if not(self.ser_port == None):
 			# send out a message to the hall effect arduino to reboot itself
 			self.ser_port.write('reboot_now\n'.encode('ascii'))
-			print('Rebooting tpu arduino.')
+			print('Rebooting CAN Arduino.')
 			# close serial port, if one is active
 			self.ser_port.close()
 
