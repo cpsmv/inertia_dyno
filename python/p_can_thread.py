@@ -2,7 +2,7 @@ import threading, serial, glob, time, random
 
 class p_can_thread(threading.Thread):
 
-	def __init__(self, my_baud, my_ser_timeout, my_rpm_unfilt_q): # *****************REVIEW LATER with Pink*****************
+	def __init__(self, my_baud, my_ser_timeout): # *****************REVIEW LATER with Pink*****************
 
 		super().__init__(name="peripheral can thread")
 
@@ -12,11 +12,11 @@ class p_can_thread(threading.Thread):
 		# store passed in parameters
 		self.baud = my_baud
 		self.ser_timeout = my_ser_timeout
-		self.rpm_unfilt_q = my_rpm_unfilt_q
-
+		
 		# intialization of important variables
 		self.ser_port = None
 		self.handshake_wait_interval = 2 # seconds
+		self.can_data = [0]*17
 
 
 	def start(self):
@@ -82,7 +82,8 @@ class p_can_thread(threading.Thread):
          				dataindex = int(line_in[0], 10)
 					temp_data = int(line_in[1:2].lower(), 16)	# 16 = number system base (hex)
           				
-					# Add if statements for different multipliers and adders
+					# If statements for different multipliers and adders
+					# Reference CAN MAP Document for which array index is for what data.
 					adder = 0  #Currently all can message data has an adder of 0
 					if dataindex = 0:
 						multiplier = 0.001
@@ -103,8 +104,9 @@ class p_can_thread(threading.Thread):
 					self.can_data.put(can_data) # *****************Confirm with Pink*****************
 				
 				else: 
-				# if the serial port timed-out before reading a line, assume current RPM is 0
-      				# *****************REVIEW LATER with Pink***************** Need to set data =0?
+				# if the serial port timed-out before reading a line, assume current CAN data is 0
+					for x in range(17):
+						can_data[x] = 0
 					continue
 				
 
